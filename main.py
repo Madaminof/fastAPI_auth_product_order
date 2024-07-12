@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
@@ -86,3 +88,39 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_order)
     return db_order
+
+
+# Endpoint to update an order
+@app.put("/orders/{order_id}", response_model=OrderResponse)
+def update_order(order_id: int, order: OrderCreate, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if db_order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    for key, value in order.dict().items():
+        setattr(db_order, key, value)
+    db.commit()
+    db.refresh(db_order)
+    return db_order
+
+# Endpoint to delete an order
+@app.delete("/orders/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_order(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if db_order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    db.delete(db_order)
+    db.commit()
+    return {"detail": "Order deleted successfully"}
+
+@app.get("/orders/{order_id}", response_model=OrderResponse)
+def read_order(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if db_order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return db_order
+
+# Endpoint to get all orders
+@app.get("/orders/", response_model=List[OrderResponse])
+def read_orders(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    orders = db.query(Order).offset(skip).limit(limit).all()
+    return orders
